@@ -1,0 +1,56 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Node {
+    id                  Int         @id @default(autoincrement())
+    type                NodeType    @default(Client)
+    periodFirstSeen     Int         @default(0)
+    periodLastSeen      Int         @default(0)
+    name                String
+    network             String
+    latitude            Float
+    longitude           Float
+    city                String
+    periods             NodesOnPeriods[]
+}
+
+model Period {
+    id          Int         @id @default(autoincrement())
+    start       DateTime
+    end         DateTime
+    seenNodes   NodesOnPeriods[]
+}
+
+model NodesOnPeriods {
+    node        Node    @relation(fields: [nodeId], references: [id])
+    nodeId      Int
+    period      Period  @relation(fields: [periodId], references: [id])
+    periodId    Int
+
+    @@id([nodeId, periodId])
+}
+
+model DayReport {
+    id          Int         @id @default(autoincrement())
+    day         DateTime    @unique
+    validators  Int
+    collators   Int
+    nodes       Int
+    clients     Int
+}
+
+enum NodeType {
+  Validator
+  Collator
+  Node
+  Client
+}
