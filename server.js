@@ -18,7 +18,7 @@ app.get('/', function (req, res) {
     res.send('Hello from Bitgreen!');
 });
 
-app.get('/nodes', async function (req, res) {
+app.post('/nodes', async function (req, res) {
     const { type_query, network_query } = nodeFilters(req)
 
     const nodes = await prisma.Node.findMany({
@@ -35,7 +35,7 @@ app.get('/nodes', async function (req, res) {
     res.send(exclude_field(nodes, 'periodFirstSeenId', 'periodLastSeenId'));
 });
 
-app.get('/periods', async function (req, res) {
+app.post('/periods', async function (req, res) {
     const { type_query, network_query } = nodeFilters(req)
 
     const periods = await prisma.Period.findMany({
@@ -65,7 +65,7 @@ app.get('/periods', async function (req, res) {
     res.send(exclude_field(periods));
 });
 
-app.get('/report/daily', async function (req, res) {
+app.post('/report/daily', async function (req, res) {
     const reports = await prisma.DayReport.findMany({
 
     });

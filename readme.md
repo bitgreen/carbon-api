@@ -29,17 +29,17 @@ npm run fetcher
 
 ### API Docs
 ___
-#### Route: `GET` `/nodes`
+#### Route: `POST` `/nodes`
 *Returns: List of all nodes.*  
 #### Params:  
 - `network` Network name to query. Example: **POLKADOT**. Leaving the field blank will show all the nodes.  
 - `type` Type of node. Leaving the field blank will show all the nodes. Possible values: **validator** and **node**.  
 ___
-#### Route: `GET` `/periods`
+#### Route: `POST` `/periods`
 *Returns: Each period monitored with nodes seed within that period.*
 #### Params:
 - `network` Network name to query. Example: **POLKADOT**. Leaving the field blank will show all the nodes.
 - `type` Type of node. Leaving the field blank will show all the nodes. Possible values: **validator** and **node**.
 ___
-#### Route: `GET` `/report/daily`  
+#### Route: `POST` `/report/daily`  
 Returns: Daily report of nodes seen.
