@@ -19,21 +19,34 @@ app.get('/', function (req, res) {
 });
 
 app.get('/nodes', async function (req, res) {
-    const nodes = await prisma.Node.findMany({
+    const { type_query, network_query } = nodeFilters(req)
 
+    const nodes = await prisma.Node.findMany({
+        where: {
+            ...type_query,
+            ...network_query
+        },
+        include: {
+            periodFirstSeen: true,
+            periodLastSeen: true,
+        }
     });
 
-    res.send(exclude_field(nodes, 'periodFirstSeen', 'periodLastSeen'));
+    res.send(exclude_field(nodes, 'periodFirstSeenId', 'periodLastSeenId'));
 });
 
-app.get('/period', async function (req, res) {
+app.get('/periods', async function (req, res) {
+    const { type_query, network_query } = nodeFilters(req)
+
     const periods = await prisma.Period.findMany({
-        select: {
-            start: true,
-            end: true,
+        where: {},
+        include: {
             seenNodes: {
-                select: {
-                    nodeId: true
+                where: {
+                    node: {
+                        ...type_query,
+                        ...network_query
+                    }
                 }
             }
         }
@@ -46,6 +59,7 @@ app.get('/period', async function (req, res) {
         for(let node of nodes) {
             period.seenNodes.push(node.nodeId)
         }
+        period.seenNodesCount = period.seenNodes.length
     }
 
     res.send(exclude_field(periods));
@@ -72,4 +86,36 @@ function exclude_field(rows, ...keys) {
     }
 
     return rows
+}
+
+function nodeFilters(req) {
+    let network = req.body.network
+    let type = req.body.type
+    let network_query = null
+    let type_query = null
+
+    if(type === 'node') {
+        type_query = {
+            type: 'Node'
+        }
+    } else if(type === 'validator') {
+        type_query = {
+            type: 'Validator'
+        }
+    }
+
+    if(network === 'POLKADOT' || network === 'KUSAMA') {
+        network_query = {
+            network: network,
+            subNetwork: ''
+        }
+    } else {
+        network_query = {
+            subNetwork: network
+        }
+    }
+
+    return {
+        type_query, network_query
+    }
 }

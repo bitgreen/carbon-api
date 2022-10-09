@@ -11,23 +11,33 @@ datasource db {
 }
 
 model Node {
-    id                  Int         @id @default(autoincrement())
-    type                NodeType    @default(Client)
-    periodFirstSeen     Int         @default(0)
-    periodLastSeen      Int         @default(0)
-    name                String
-    network             String
-    latitude            Float
-    longitude           Float
-    city                String
-    periods             NodesOnPeriods[]
+    id                      Int         @id @default(autoincrement())
+    name                    String
+    type                    NodeType    @default(Node)
+    network                 String
+    subNetwork              String?
+    latitude                Float?
+    longitude               Float?
+    city                    String?
+    periodFirstSeenId       Int         @default(0)
+    periodFirstSeen         Period      @relation(name: "nodeFirstSeen", fields: [periodFirstSeenId], references: [id])
+    periodLastSeenId        Int         @default(0)
+    periodLastSeen          Period      @relation(name: "nodelastSeen", fields: [periodLastSeenId], references: [id])
+    periods                 NodesOnPeriods[]
+
+    @@unique(name: "uniqueId", [name, type, network, subNetwork, latitude, longitude])
 }
 
 model Period {
-    id          Int         @id @default(autoincrement())
-    start       DateTime
-    end         DateTime
-    seenNodes   NodesOnPeriods[]
+    id              Int         @id @default(autoincrement())
+    start           DateTime
+    end             DateTime
+    seenNodes       NodesOnPeriods[]
+
+    nodeFirstSeen   Node[]      @relation(name: "nodeFirstSeen")
+    nodelastSeen    Node[]      @relation(name: "nodelastSeen")
+
+    @@unique(name: "uniqueId", [start, end])
 }
 
 model NodesOnPeriods {
@@ -36,7 +46,7 @@ model NodesOnPeriods {
     period      Period  @relation(fields: [periodId], references: [id])
     periodId    Int
 
-    @@id([nodeId, periodId])
+    @@unique(name: "uniqueId", [nodeId, periodId])
 }
 
 model DayReport {
@@ -52,5 +62,4 @@ enum NodeType {
   Validator
   Collator
   Node
-  Client
 }
