@@ -31,13 +31,13 @@ npm run fetcher
 ___
 #### Route: `POST` `/nodes`
 *Returns: List of all nodes.*  
-#### Params:  
+#### Params (JSON):  
 - `network` Network name to query. Example: **POLKADOT**. Leaving the field blank will show all the nodes.  
 - `type` Type of node. Leaving the field blank will show all the nodes. Possible values: **validator** and **node**.  
 ___
 #### Route: `POST` `/periods`
 *Returns: Each period monitored with nodes seed within that period.*
-#### Params:
+#### Params (JSON):
 - `network` Network name to query. Example: **POLKADOT**. Leaving the field blank will show all the nodes.
 - `type` Type of node. Leaving the field blank will show all the nodes. Possible values: **validator** and **node**.
 ___
