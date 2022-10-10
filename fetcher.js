@@ -104,7 +104,7 @@ async function getByNetwork(network = 'POLKADOT') {
     const ws = new WebSocket('wss://feed.telemetry.polkadot.io/feed')
 
     ws.on('open', function() {
-        ws.send('subscribe:' + chain.hash)
+        ws.send('subscribe:' + (parachain ? parachain.hash : chain.hash))
     });
 
     ws.on('message', async function(data, flags) {
