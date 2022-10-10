@@ -30,9 +30,8 @@ let period
 let period_start_time
 let period_end_time
 let job = new CronJob(
-    // '*/30 * * * *', // every 30 minutes
-    '* * * * *', // every minute - testing
-    startLoop()
+    '*/30 * * * *', // every 30 minutes
+    startLoop
 );
 job.start()
 
@@ -40,6 +39,7 @@ job.start()
 // Todo: add cron job for DayReport
 
 async function startLoop() {
+    console.log('here')
     period_start_time = new Date();
     period_start_time = new Date(Math.round(period_start_time.getTime() / (1000 * 60 * 30)) * (1000 * 60 * 30)) // round it to the nearest minute
     period_end_time = new Date(period_start_time.getTime() + 1000 * 60 * 30)
