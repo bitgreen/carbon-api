@@ -22,24 +22,10 @@ Starting API server, you can define port at `.env` file. Default port is `3000`.
 npm run start
 ```
 
-To run fetcher, run the following command: `#wip`
+To run fetcher, run the following command:
 ```
 npm run fetcher
 ```
 
 ### API Docs
-___
-#### Route: `POST` `/nodes`
-*Returns: List of all nodes.*  
-#### Params (JSON):  
-- `network` Network name to query. Example: **POLKADOT**. Leaving the field blank will show all the nodes.  
-- `type` Type of node. Leaving the field blank will show all the nodes. Possible values: **validator** and **node**.  
-___
-#### Route: `POST` `/periods`
-*Returns: Each period monitored with nodes seed within that period.*
-#### Params (JSON):
-- `network` Network name to query. Example: **POLKADOT**. Leaving the field blank will show all the nodes.
-- `type` Type of node. Leaving the field blank will show all the nodes. Possible values: **validator** and **node**.
-___
-#### Route: `POST` `/report/daily`  
-Returns: Daily report of nodes seen.
+Check out API docs [here](https://app.swaggerhub.com/apis-docs/Bitgreen/carbon-api/).
