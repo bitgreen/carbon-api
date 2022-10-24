@@ -22,8 +22,9 @@ model Node {
     periodFirstSeenId       Int         @default(0)
     periodFirstSeen         Period      @relation(name: "nodeFirstSeen", fields: [periodFirstSeenId], references: [id])
     periodLastSeenId        Int         @default(0)
-    periodLastSeen          Period      @relation(name: "nodelastSeen", fields: [periodLastSeenId], references: [id])
+    periodLastSeen          Period      @relation(name: "nodeLastSeen", fields: [periodLastSeenId], references: [id])
     periods                 NodesOnPeriods[]
+    dayReports              NodesOnDayReports[]
 
     @@unique(name: "uniqueId", [name, type, network, subNetwork, latitude, longitude])
 }
@@ -35,7 +36,7 @@ model Period {
     seenNodes       NodesOnPeriods[]
 
     nodeFirstSeen   Node[]      @relation(name: "nodeFirstSeen")
-    nodelastSeen    Node[]      @relation(name: "nodelastSeen")
+    nodeLastSeen    Node[]      @relation(name: "nodeLastSeen")
 
     @@unique(name: "uniqueId", [start, end])
 }
@@ -52,10 +53,17 @@ model NodesOnPeriods {
 model DayReport {
     id          Int         @id @default(autoincrement())
     day         DateTime    @unique
-    validators  Int
-    collators   Int
-    nodes       Int
-    clients     Int
+
+    seenNodes   NodesOnDayReports[]
+}
+
+model NodesOnDayReports {
+    node            Node        @relation(fields: [nodeId], references: [id])
+    nodeId          Int
+    dayReport       DayReport   @relation(fields: [dayReportId], references: [id])
+    dayReportId     Int
+
+    @@unique(name: "uniqueId", [nodeId, dayReportId])
 }
 
 enum NodeType {

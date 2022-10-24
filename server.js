@@ -66,11 +66,32 @@ app.post('/periods', async function (req, res) {
 });
 
 app.post('/report/daily', async function (req, res) {
-    const reports = await prisma.DayReport.findMany({
+    const { type_query, network_query } = nodeFilters(req)
 
+    const day_reports = await prisma.DayReport.findMany({
+        include: {
+            seenNodes: {
+                where: {
+                    node: {
+                        ...type_query,
+                        ...network_query
+                    }
+                }
+            }
+        }
     });
 
-    res.send(exclude_field(reports, 'id'));
+    // Display only node IDs
+    for (let day_report of day_reports) {
+        let nodes = day_report.seenNodes;
+        day_report.seenNodes = []
+        for(let node of nodes) {
+            day_report.seenNodes.push(node.nodeId)
+        }
+        day_report.seenNodesCount = day_report.seenNodes.length
+    }
+
+    res.send(exclude_field(day_reports, 'id'));
 });
 
 /* serve api */

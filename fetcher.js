@@ -29,14 +29,92 @@ const networks = {
 let period
 let period_start_time
 let period_end_time
-let job = new CronJob(
+let fetcher_job = new CronJob(
     '*/30 * * * *', // every 30 minutes
     startLoop
 );
-job.start()
+fetcher_job.start()
 
+let report_job = new CronJob(
+    '0 0 * * *', // every midnight
+    generateDailyReport
+);
+report_job.start()
 
-// Todo: add cron job for DayReport
+async function generateDailyReport() {
+    let seen_nodes = []
+    let end_time = new Date();
+    end_time = new Date(Math.round(end_time.getTime() / (1000 * 60 * 60 * 24)) * (1000 * 60 * 60 * 24)) // round it to the nearest day
+    let start_time = new Date(end_time - (1000 * 60 * 60 * 24))
+
+    const periods = await prisma.Period.findMany({
+        where: {
+            start: {
+                gte: start_time.toISOString()
+            },
+            end: {
+                lte: end_time.toISOString()
+            }
+        },
+        include: {
+            seenNodes: true
+        }
+    })
+
+    for(let period of periods) {
+        if(period.seenNodes) {
+            for(let node of period.seenNodes) {
+                let node_exists = seen_nodes.filter(function(n) {
+                    return node.nodeId === n.nodeId
+                })
+                node_exists = node_exists[0]
+
+                if(node_exists) {
+                    seen_nodes = seen_nodes.map(function(n) {
+                        if(node.nodeId === n.nodeId) {
+                            return {...n, times_seen: n.times_seen + 1 };
+                        }
+
+                        return n
+                    })
+                } else {
+                    seen_nodes.push({
+                        nodeId: node.nodeId,
+                        times_seen: 1
+                    })
+                }
+            }
+        }
+    }
+
+    const day_report = await prisma.DayReport.upsert({
+        where: {
+            day: start_time.toISOString(),
+        },
+        update: {},
+        create: {
+            day: start_time.toISOString()
+        }
+    })
+
+    for(let node of seen_nodes) {
+        if(node.times_seen >= 24) {
+            await prisma.NodesOnDayReports.upsert({
+                where: {
+                    uniqueId: {
+                        nodeId: node.nodeId,
+                        dayReportId: day_report.id
+                    }
+                },
+                update: {},
+                create: {
+                    nodeId: node.nodeId,
+                    dayReportId: day_report.id
+                }
+            });
+        }
+    }
+}
 
 async function startLoop() {
     period_start_time = new Date();
@@ -60,8 +138,12 @@ async function startLoop() {
     const fetch_networks = process.env.FETCH_NETWORKS.split(',')
 
     let promise_call = []
-    for(let network in fetch_networks) {
-        network = fetch_networks[network].toUpperCase()
+    for(let network of fetch_networks) {
+        network = network.toUpperCase()
+
+        if(network === 'POLKADOT' || network === 'KUSAMA') {
+            promise_call.push(getByNetwork(network, 'w3f'))
+        }
 
         promise_call.push(getByNetwork(network))
     }
@@ -69,7 +151,7 @@ async function startLoop() {
     await Promise.all(promise_call);
 }
 
-async function getByNetwork(network = 'POLKADOT') {
+async function getByNetwork(network = 'POLKADOT', source = 'default') {
     let chain = networks[network]
     let parachain = null
     let sub_network = null
@@ -101,7 +183,17 @@ async function getByNetwork(network = 'POLKADOT') {
         sub_network = ''
     }
 
-    const ws = new WebSocket('wss://feed.telemetry.polkadot.io/feed')
+    let ws = null
+    if(source === 'w3f') {
+        ws = new WebSocket('wss://telemetry-backend.w3f.community/feed')
+    } else {
+        ws = new WebSocket('wss://feed.telemetry.polkadot.io/feed')
+    }
+
+    if(!ws) {
+        console.log('Source not found.')
+        return false;
+    }
 
     ws.on('open', function() {
         ws.send('subscribe:' + (parachain ? parachain.hash : chain.hash))
