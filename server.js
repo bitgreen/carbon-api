@@ -9,6 +9,9 @@ const prisma = new PrismaClient()
 dotenv.config();
 const port = process.env.API_PORT || 3000
 
+const networks = require('./networks.json')
+const fetch_networks = process.env.FETCH_NETWORKS.split(',')
+
 app.use(express.urlencoded({extended: true}));
 app.use(express.json());
 
@@ -16,6 +19,31 @@ app.use(cors());
 
 app.get('/', function (req, res) {
     res.send('Hello from Bitgreen!');
+});
+
+app.get('/networks', function (req, res) {
+    let all_networks = []
+
+    for(let n of fetch_networks) {
+        let network = networks[n.toUpperCase()]
+
+        if(!network) {
+            network = networks['POLKADOT']['parachains'][n.toUpperCase()]
+        }
+
+        if(!network) {
+            network = networks['KUSAMA']['parachains'][n.toUpperCase()]
+        }
+
+        if(network) {
+            all_networks.push({
+                'network': n.toUpperCase(),
+                'hash': network.hash,
+            })
+        }
+    }
+
+    res.send(all_networks);
 });
 
 app.post('/nodes', async function (req, res) {
@@ -38,8 +66,27 @@ app.post('/nodes', async function (req, res) {
 app.post('/periods', async function (req, res) {
     const { type_query, network_query } = nodeFilters(req)
 
+    let { start_date, end_date } = req.body
+    start_date = Date.parse(start_date)
+    end_date = Date.parse(end_date)
+
+    let date_query = {
+        start: {},
+        end: {}
+    }
+
+    if(start_date) {
+        date_query.start.gte = new Date(start_date)
+    }
+
+    if(end_date) {
+        date_query.end.lte = new Date(end_date)
+    }
+
     const periods = await prisma.Period.findMany({
-        where: {},
+        where: {
+            ...date_query
+        },
         include: {
             seenNodes: {
                 where: {
@@ -68,7 +115,27 @@ app.post('/periods', async function (req, res) {
 app.post('/report/daily', async function (req, res) {
     const { type_query, network_query } = nodeFilters(req)
 
+    let { start_date, end_date } = req.body
+    start_date = Date.parse(start_date)
+    end_date = Date.parse(end_date)
+
+    let date_query = {
+        day: {},
+    }
+
+    if(start_date) {
+        date_query.day.gte = new Date(start_date)
+    }
+
+    if(end_date) {
+        date_query.day.lte = new Date(end_date)
+
+    }
+
     const day_reports = await prisma.DayReport.findMany({
+        where: {
+            ...date_query
+        },
         include: {
             seenNodes: {
                 where: {
@@ -76,19 +143,37 @@ app.post('/report/daily', async function (req, res) {
                         ...type_query,
                         ...network_query
                     }
+                },
+                include: {
+                    node: true
                 }
             }
         }
     });
 
-    // Display only node IDs
+    // Display only node IDs and calculate totals
     for (let day_report of day_reports) {
+        day_report.seenNodesCount = {
+            'nodes': 0,
+            'validators': 0,
+            'collators': 0,
+            'all': 0
+        }
+
         let nodes = day_report.seenNodes;
         day_report.seenNodes = []
         for(let node of nodes) {
             day_report.seenNodes.push(node.nodeId)
+
+            if(node.node.type === 'Node') {
+                day_report.seenNodesCount.nodes++
+            } else if(node.node.type === 'Validator') {
+                day_report.seenNodesCount.validators++
+            } else if(node.node.type === 'Collator') {
+                day_report.seenNodesCount.collators++
+            }
         }
-        day_report.seenNodesCount = day_report.seenNodes.length
+        day_report.seenNodesCount.all = day_report.seenNodes.length
     }
 
     res.send(exclude_field(day_reports, 'id'));
