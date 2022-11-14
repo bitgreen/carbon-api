@@ -13,7 +13,7 @@ const networks = require('./networks.json')
 const fetch_networks = process.env.FETCH_NETWORKS.split(',')
 
 app.use(express.urlencoded({extended: true}));
-app.use(express.json());
+app.use(express.json({ limit: '64mb' }));
 
 app.use(cors());
 
