@@ -14,6 +14,7 @@ model Node {
     id                      Int         @id @default(autoincrement())
     name                    String
     type                    NodeType    @default(Node)
+    networkId               Int         @default(1)
     network                 String
     subNetwork              String?
     latitude                Float?
@@ -64,6 +65,13 @@ model NodesOnDayReports {
     dayReportId     Int
 
     @@unique(name: "uniqueId", [nodeId, dayReportId])
+}
+
+model Network {
+    id              Int         @id @default(autoincrement())
+    name            String
+    parentNetwork   String?
+    hash            String      @unique
 }
 
 enum NodeType {
