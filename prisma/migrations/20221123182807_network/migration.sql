@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE "Node" ADD COLUMN     "networkId" INTEGER NOT NULL DEFAULT 1;
