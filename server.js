@@ -9,8 +9,8 @@ const prisma = new PrismaClient()
 dotenv.config();
 const port = process.env.API_PORT || 3000
 
-app.use(express.urlencoded({extended: true, limit: '64mb'}));
-app.use(express.json({ limit: '64mb' }));
+app.use(express.urlencoded({extended: true, limit: '256mb'}));
+app.use(express.json({ limit: '256mb' }));
 
 app.use(cors());
 
