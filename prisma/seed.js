@@ -21,6 +21,9 @@ const load = async () => {
         await prisma.DayReport.deleteMany()
         console.log('Deleted records in DayReport table')
 
+        await prisma.Network.deleteMany()
+        console.log('Deleted records in Network table')
+
         let start_time = new Date();
         start_time = new Date(Math.round(start_time.getTime() / (1000 * 60 * 60)) * (1000 * 60 * 60)) // round it to the nearest minute
         start_time = new Date(start_time.getTime() - (1000 * 60 * 60 * 48))
@@ -41,6 +44,30 @@ const load = async () => {
             start_time = end_time;
         }
         console.log('Added Period data')
+
+        // create POLKADOT network
+        const polkadot_network = await prisma.Network.create({
+            data: {
+                name: 'POLKADOT',
+                hash: '0x91b171bb158e2d3848fa23a9f1c25182fb8e20313b2c1eb49219da7a70ce90c3'
+            }
+        })
+        // create KUSAMA network
+        const kusama_network = await prisma.Network.create({
+            data: {
+                name: 'KUSAMA',
+                hash: '0xb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe'
+            }
+        })
+        // create MOONBEAM network
+        const moonbeam_network = await prisma.Network.create({
+            data: {
+                name: 'MOONBEAM',
+                parentNetworkId: polkadot_network.id,
+                hash: '0xfe58ea77779b7abda7da4ec526d14db9b1e9cd40a217c34892af80a9b332b76d'
+            }
+        })
+        console.log('Added Network data')
 
         const periods = await prisma.Period.findMany()
         let all_nodes = []
@@ -63,8 +90,7 @@ const load = async () => {
                 data: {
                     type: chance.bool({likelihood: 30}) ? (chance.bool() ? 'Collator' : 'Validator') : 'Node',
                     name: chance.word({ length: 5 }) + '-' + chance.word({ length: 10 }),
-                    network: chance.bool() ? 'KUSAMA' : 'POLKADOT',
-                    subNetwork: '',
+                    networkId: chance.bool({likelihood: 40}) ? kusama_network.id : (chance.bool({likelihood: 30}) ? polkadot_network.id : moonbeam_network.id),
                     latitude: chance.latitude(),
                     longitude: chance.longitude(),
                     city: chance.city(),

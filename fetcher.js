@@ -7,9 +7,6 @@ const prisma = new PrismaClient()
 /* config */
 dotenv.config();
 
-const networks = require('./networks.json')
-const fetch_networks = process.env.FETCH_NETWORKS.split(',')
-
 let period
 let period_start_time
 let period_end_time
@@ -18,6 +15,8 @@ let fetcher_job = new CronJob(
     startLoop
 );
 fetcher_job.start()
+
+startLoop()
 
 let report_job = new CronJob(
     '0 0 * * *', // every midnight
@@ -119,11 +118,15 @@ async function startLoop() {
         }
     })
 
+    const fetch_networks = await prisma.Network.findMany({
+        include: {
+            parentNetwork: true
+        }
+    })
+
     let promise_call = []
     for(let network of fetch_networks) {
-        network = network.toUpperCase()
-
-        if(network === 'POLKADOT' || network === 'KUSAMA') {
+        if(network.name === 'POLKADOT' || network.name === 'KUSAMA') {
             promise_call.push(getByNetwork(network, 'w3f'))
         }
 
@@ -133,38 +136,7 @@ async function startLoop() {
     await Promise.all(promise_call);
 }
 
-async function getByNetwork(network = 'POLKADOT', source = 'default') {
-    let chain = networks[network]
-    let parachain = null
-    let sub_network = null
-
-    if(!chain) {
-        parachain = networks['POLKADOT']['parachains'][network]
-        if(parachain) {
-            sub_network = network
-            network = 'POLKADOT'
-            chain = networks['POLKADOT']
-        }
-    }
-
-    if(!chain && !parachain) {
-        parachain = networks['KUSAMA']['parachains'][network]
-        if(parachain) {
-            sub_network = network
-            network = 'POLKADOT'
-            chain = networks['KUSAMA']
-        }
-    }
-
-    if(!chain) {
-        console.log('Chain not found: ' + network)
-        return false;
-    }
-
-    if(!sub_network) {
-        sub_network = ''
-    }
-
+async function getByNetwork(network, source = 'default') {
     let ws = null
     if(source === 'w3f') {
         ws = new WebSocket('wss://telemetry-backend.w3f.community/feed')
@@ -178,7 +150,7 @@ async function getByNetwork(network = 'POLKADOT', source = 'default') {
     }
 
     ws.on('open', function() {
-        ws.send('subscribe:' + (parachain ? parachain.hash : chain.hash))
+        ws.send('subscribe:' + network.hash)
     });
 
     ws.on('message', async function(data, flags) {
@@ -187,7 +159,37 @@ async function getByNetwork(network = 'POLKADOT', source = 'default') {
         data = utf8decoder.decode(data)
         let messages = deserialize(data)
 
+        if(messages.length > 20) {
+            // return
+        }
+
         for (const message of messages) {
+            // list of all chains
+            // avoid checking on every message, do it once every period
+            if(message.action === 11 && network.name === 'POLKADOT' && source !== 'w3f') {
+                const [
+                    network_name,
+                    network_hash
+                ] = message.payload
+
+                try {
+                    await prisma.Network.upsert({
+                        where: {
+                            hash: network_hash
+                        },
+                        update: {
+                            name: network_name
+                        },
+                        create: {
+                            name: network_name,
+                            hash: network_hash
+                        }
+                    })
+                } catch (e) {
+                    console.log('error saving network')
+                }
+            }
+
             // AddedNode
             if(message.action === 3) {
                 const [
@@ -219,8 +221,7 @@ async function getByNetwork(network = 'POLKADOT', source = 'default') {
                             uniqueId: {
                                 name: name,
                                 type: type,
-                                network: network,
-                                subNetwork: sub_network,
+                                networkId: network.id,
                                 latitude: latitude,
                                 longitude: longitude
                             }
@@ -232,8 +233,7 @@ async function getByNetwork(network = 'POLKADOT', source = 'default') {
                         create: {
                             name: name,
                             type: type,
-                            network: network,
-                            subNetwork: sub_network,
+                            networkId: network.id,
                             latitude: latitude,
                             longitude: longitude,
                             city: city,
@@ -266,8 +266,8 @@ async function getByNetwork(network = 'POLKADOT', source = 'default') {
             }
 
             // SubscribedTo
-            if(message.action === 13) {
-                console.log('subscribed to ' + (sub_network ? sub_network + ' - ' : '') + network  + ': ' + message.payload)
+            if(message.action === 13 && source !== 'w3f') {
+                console.log('subscribed to ' +  network.name + (network.parentNetwork ? ' - ' + network.parentNetwork.name : '') + ': ' + message.payload)
             }
 
             // UnsubscribedFrom

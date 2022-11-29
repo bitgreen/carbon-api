@@ -15,8 +15,7 @@ model Node {
     name                    String
     type                    NodeType    @default(Node)
     networkId               Int         @default(1)
-    network                 String
-    subNetwork              String?
+    network                 Network     @relation(name: "nodeNetwork", fields: [networkId], references: [id])
     latitude                Float?
     longitude               Float?
     city                    String?
@@ -27,7 +26,7 @@ model Node {
     periods                 NodesOnPeriods[]
     dayReports              NodesOnDayReports[]
 
-    @@unique(name: "uniqueId", [name, type, network, subNetwork, latitude, longitude])
+    @@unique(name: "uniqueId", [name, type, networkId, latitude, longitude])
 }
 
 model Period {
@@ -69,9 +68,12 @@ model NodesOnDayReports {
 
 model Network {
     id              Int         @id @default(autoincrement())
-    name            String
-    parentNetwork   String?
+    name            String      @unique
+    parentNetworkId Int?
+    parentNetwork   Network?    @relation(name: "parentNetwork", fields: [parentNetworkId], references: [id])
+    childNetworks   Network[]   @relation(name: "parentNetwork")
     hash            String      @unique
+    nodes           Node[]      @relation(name: "nodeNetwork")
 }
 
 enum NodeType {

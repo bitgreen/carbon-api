@@ -9,9 +9,6 @@ const prisma = new PrismaClient()
 dotenv.config();
 const port = process.env.API_PORT || 3000
 
-const networks = require('./networks.json')
-const fetch_networks = process.env.FETCH_NETWORKS.split(',')
-
 app.use(express.urlencoded({extended: true, limit: '64mb'}));
 app.use(express.json({ limit: '64mb' }));
 
@@ -21,46 +18,64 @@ app.get('/', function (req, res) {
     res.send('Hello from Bitgreen!');
 });
 
-app.get('/networks', function (req, res) {
-    let all_networks = []
-
-    for(let n of fetch_networks) {
-        let network = networks[n.toUpperCase()]
-
-        if(!network) {
-            network = networks['POLKADOT']['parachains'][n.toUpperCase()]
-        }
-
-        if(!network) {
-            network = networks['KUSAMA']['parachains'][n.toUpperCase()]
-        }
-
-        if(network) {
-            all_networks.push({
-                'network': n.toUpperCase(),
-                'hash': network.hash,
-            })
-        }
-    }
+app.get('/networks', async function (req, res) {
+    let all_networks = await prisma.Network.findMany()
 
     res.send(all_networks);
 });
 
 app.post('/nodes', async function (req, res) {
-    const { type_query, network_query } = nodeFilters(req)
+    const { type_query, network_query, subnetwork_query } = nodeFilters(req)
+
+    let { last_seen_date } = req.body
+    last_seen_date = Date.parse(last_seen_date)
+
+    let date_query = null
+
+    if(last_seen_date) {
+        date_query = {
+            end: {
+                gte: new Date(last_seen_date)
+            }
+        }
+    }
 
     const nodes = await prisma.Node.findMany({
         where: {
             ...type_query,
-            ...network_query
+            network: {
+                OR: [
+                    {
+                        ...network_query
+                    },
+                    {
+                        ...subnetwork_query
+                    }
+                ]
+            },
+            periodLastSeen: {
+                ...date_query
+            }
         },
         include: {
+            network: {
+                select: {
+                    name: true,
+                    hash: true,
+                    parentNetwork: {
+                        select: {
+                            name: true,
+                            hash: true
+                        }
+                    }
+                }
+            },
             periodFirstSeen: true,
             periodLastSeen: true,
         }
     });
 
-    res.send(exclude_field(nodes, 'periodFirstSeenId', 'periodLastSeenId'));
+    res.send(exclude_field(nodes, 'periodFirstSeenId', 'periodLastSeenId', 'networkId'));
 });
 
 app.post('/periods', async function (req, res) {
@@ -92,7 +107,9 @@ app.post('/periods', async function (req, res) {
                 where: {
                     node: {
                         ...type_query,
-                        ...network_query
+                        network: {
+                            ...network_query
+                        }
                     }
                 }
             }
@@ -113,7 +130,7 @@ app.post('/periods', async function (req, res) {
 });
 
 app.post('/report/daily', async function (req, res) {
-    const { type_query, network_query } = nodeFilters(req)
+    const { type_query, network_query, subnetwork_query } = nodeFilters(req)
 
     let { start_date, end_date } = req.body
     start_date = Date.parse(start_date)
@@ -141,7 +158,16 @@ app.post('/report/daily', async function (req, res) {
                 where: {
                     node: {
                         ...type_query,
-                        ...network_query
+                        network: {
+                            OR: [
+                                {
+                                    ...network_query
+                                },
+                                {
+                                    ...subnetwork_query
+                                }
+                            ]
+                        }
                     }
                 },
                 include: {
@@ -195,9 +221,9 @@ function exclude_field(rows, ...keys) {
 }
 
 function nodeFilters(req) {
-    let network = req.body.network
-    let type = req.body.type
+    let { network_id, network, type, include_subnetworks } = req.body
     let network_query = null
+    let subnetwork_query = null
     let type_query = null
 
     if(type === 'node') {
@@ -210,18 +236,30 @@ function nodeFilters(req) {
         }
     }
 
-    if(network === 'POLKADOT' || network === 'KUSAMA') {
+    // accept both params for now, respect network_id if both provided
+    if(network_id) {
         network_query = {
-            network: network,
-            subNetwork: ''
+            id: network_id
         }
-    } else {
+    } else if(network) {
         network_query = {
-            subNetwork: network
+            name: {
+                equals: network,
+                mode: 'insensitive'
+            }
+        }
+    }
+
+    // extend the search for subnetworks in flag is set to true
+    if(include_subnetworks) {
+        subnetwork_query = {
+            parentNetwork: {
+                ...network_query
+            }
         }
     }
 
     return {
-        type_query, network_query
+        type_query, network_query, subnetwork_query
     }
 }
