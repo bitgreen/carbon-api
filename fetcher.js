@@ -16,8 +16,6 @@ let fetcher_job = new CronJob(
 );
 fetcher_job.start()
 
-startLoop()
-
 let report_job = new CronJob(
     '0 0 * * *', // every midnight
     generateDailyReport
