@@ -19,7 +19,11 @@ app.get('/', function (req, res) {
 });
 
 app.get('/networks', async function (req, res) {
-    let all_networks = await prisma.Network.findMany()
+    let all_networks = await prisma.Network.findMany({
+        orderBy: {
+            id: 'asc',
+        }
+    })
 
     res.send(all_networks);
 });
