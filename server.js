@@ -36,11 +36,13 @@ app.post('/nodes', async function (req, res) {
 
     let date_query = null
 
-    if(last_seen_date) {
-        date_query = {
-            end: {
-                gte: new Date(last_seen_date)
-            }
+    if(!last_seen_date) {
+        last_seen_date = Date.now() - 30 * 24 * 60 * 60 * 1000
+    }
+
+    date_query = {
+        end: {
+            gte: new Date(last_seen_date)
         }
     }
 
