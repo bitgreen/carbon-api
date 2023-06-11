@@ -29,3 +29,18 @@ npm run fetcher
 
 ### API Docs
 Check out API docs [here](https://app.swaggerhub.com/apis-docs/Bitgreen/carbon-api/).
+
+
+## Docker
+You can run this API in Docker containers with minimal effort as follows:  
+  
+### Requirements:  
+Install docker and docker composer from [https://www.docker.com](https://www.docker.com)  
+  
+### Build and Run  
+from the project folder execute:  
+```
+docker compose up -d
+```
+A database with some seed data, the Api Serve and the Fetcher Server will be
+deployed.  
